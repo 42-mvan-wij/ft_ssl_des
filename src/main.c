@@ -30,17 +30,8 @@
 
 
 
-#include <stdio.h>
-#include "base64.h"
-// #include <limits.h>
-// #include <ctype.h>
-// #include "sha256.h"
-// #include "hash.h"
 t_result cmd_test(char **args) {
 	(void)args;
-	char *b64 = base64_encode_buf((void*)"aaa\n", 4);
-	printf("b64: <%s>\n", b64);
-	free(b64);
 	return OK;
 }
 
