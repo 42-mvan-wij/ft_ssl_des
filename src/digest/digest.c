@@ -87,7 +87,12 @@ static void print_md5_buf(char *buf, size_t size, struct digest_args *const opts
 }
 
 static void print_md5_fd(int fd, char *filename, struct digest_args *const opts) {
-	struct hash128 hash128 = md5_fd(fd);
+	struct hash128 hash128;
+	if (md5_fd(fd, &hash128) != OK) {
+		print_error(fd, PROG_NAME ": md5");
+		clear_error();
+		return;
+	}
 	if (!opts->reverse && !opts->quiet) {
 		ft_putstr(STDOUT_FILENO, "MD5(");
 		ft_putstr(STDOUT_FILENO, filename);
@@ -158,7 +163,12 @@ static void print_sha256_buf(char *buf, size_t size, struct digest_args *const o
 }
 
 static void print_sha256_fd(int fd, char *filename, struct digest_args *const opts) {
-	struct hash256 hash256 = sha256_fd(fd);
+	struct hash256 hash256;
+	if (sha256_fd(fd, &hash256) != OK) {
+		print_error(fd, PROG_NAME ": sha256");
+		clear_error();
+		return;
+	}
 	if (!opts->reverse && !opts->quiet) {
 		ft_putstr(STDOUT_FILENO, "SHA256(");
 		ft_putstr(STDOUT_FILENO, filename);

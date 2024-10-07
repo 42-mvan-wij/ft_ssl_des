@@ -1,7 +1,10 @@
 NAME := ft_ssl
 
 SRCDIR := src
-SOURCES := $(shell find $(SRCDIR) -name '*.c' -not -name '*_bonus.c')
+SOURCES := $(shell find $(SRCDIR) -name '*.c' -not -name '*_bonus.c' -not -name 'test.c')
+ifeq ($(FUZZ),1)
+	SOURCES := $(filter-out $(SRCDIR)/main.c,$(SOURCES)) $(SRCDIR)/fuzz.c
+endif
 OBJDIR := obj
 OBJECTS := $(addprefix $(OBJDIR)/, $(SOURCES:c=o))
 
@@ -10,17 +13,33 @@ OBJECTS := $(addprefix $(OBJDIR)/, $(SOURCES:c=o))
 # endif
 
 INCLUDES := $(addprefix -I,$(sort $(dir $(shell find $(SRCDIR) -name '*.h' -not -name '*_bonus.h'))))
-CFLAGS := -Wall -Wextra -Werror
-LFLAGS := 
-ifdef NO_WARN
-	CFLAGS :=
+CFLAGS := -Wall -Wextra -Werror $(INCLUDES)
+LFLAGS := -lbsd
+
+ifdef SANITIZE
+	SAN := $(SANITIZE)
 endif
-CFLAGS += $(INCLUDES)
-ifdef DEBUG
+ifndef SAN
+	SAN := 0
+endif
+ifneq ($(SAN),0)
 	SANITIZERS := address,leak,undefined,integer,implicit-conversion,local-bounds,float-divide-by-zero,nullability
-	CFLAGS += -g -fsanitize=$(SANITIZERS) -fno-omit-frame-pointer
-	LFLAGS += -g -fsanitize=$(SANITIZERS) -fno-omit-frame-pointer
+	CFLAGS += -fsanitize=$(SANITIZERS) -fno-omit-frame-pointer -fno-sanitize-recover=all
+	LFLAGS += -fsanitize=$(SANITIZERS) -fno-omit-frame-pointer -fno-sanitize-recover=all
+	DEBUG := 1
 endif
+ifeq ($(FUZZ),1)
+	CFLAGS += -fsanitize=fuzzer
+	LFLAGS += -fsanitize=fuzzer
+endif
+ifndef DEBUG
+	DEBUG := 0
+endif
+ifneq ($(DEBUG),0)
+	CFLAGS += -g
+	LFLAGS += -g
+endif
+
 
 $(OBJDIR)/%.o: %.c
 	@mkdir -p $(dir $@)
@@ -40,6 +59,10 @@ clean:
 .PHONY: fclean
 fclean: clean
 	rm -f $(NAME)
+
+.PHONY: fclean
+fclean: clean
+	rm -f $(NAME)
 	# rm -f $(TEST_NAME)
 
 .PHONY: re
@@ -52,6 +75,12 @@ bonus:
 .PHONY: re_bonus
 re_bonus:
 	$(MAKE) BONUS=1 re
+
+valgrind:
+	$(MAKE) re DEBUG=1 SAN=0
+
+fuzz:
+	$(MAKE) re SAN=1 FUZZ=1
 
 # .PHONY: test
 # test: all

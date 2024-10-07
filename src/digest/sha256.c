@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "endian.h"
+#include "error.h"
 #include "hash.h"
 #include "utils.h"
 
@@ -171,7 +172,7 @@ struct hash256 sha256_buf(void *buf, size_t buf_size) {
 	return sha256_to_hash(sha256_final_round(state, buf, buf_size * 8, msg_length * 8));
 }
 
-struct hash256 sha256_fd(int fd) {
+t_result sha256_fd(int fd, struct hash256 *hash256) {
 	struct sha256 state = sha256_initial_state();
 	uint8_t buf[64];
 	size_t buf_length = 0;
@@ -182,12 +183,13 @@ struct hash256 sha256_fd(int fd) {
 		do {
 			ssize_t nread = read(fd, buf, sizeof(buf));
 			if (nread < 0) {
-				// FIXME: error
+				return set_error(E_ERRNO, NULL);
 			}
 			buf_length += nread;
 			msg_length += nread;
 			if (nread == 0) {
-				return sha256_to_hash(sha256_final_round(state, buf, buf_length * 8, msg_length * 8));
+				*hash256 = sha256_to_hash(sha256_final_round(state, buf, buf_length * 8, msg_length * 8));
+				return OK;
 			}
 		} while (buf_length != sizeof(buf));
 		state = sha256_round(state, buf);

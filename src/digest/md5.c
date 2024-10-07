@@ -5,15 +5,10 @@
 #include <unistd.h>
 
 #include "endian.h"
+#include "error.h"
 #include "hash.h"
+#include "md5.h"
 #include "utils.h"
-
-struct md5 {
-	uint32_t a;
-	uint32_t b;
-	uint32_t c;
-	uint32_t d;
-};
 
 __attribute__((no_sanitize("unsigned-integer-overflow")))
 static struct md5 md5_round(struct md5 state, void const *buf) {
@@ -163,26 +158,62 @@ struct hash128 md5_buf(void *buf, size_t buf_size) {
 	return md5_to_hash(md5_final_round(state, buf, buf_size * 8, msg_length * 8));
 }
 
-struct hash128 md5_fd(int fd) {
-	struct md5 state = md5_initial_state();
+t_result md5_fd(int fd, struct hash128 *hash128) {
+	struct md5_stream_data stream = md5_init_stream();
+
 	uint8_t buf[64];
-	size_t buf_length = 0;
-	uint64_t msg_length = 0;
 
 	while (true) {
-		buf_length = 0;
-		do {
-			ssize_t nread = read(fd, buf, sizeof(buf));
-			if (nread < 0) {
-				// FIXME: error
-			}
-			buf_length += nread;
-			msg_length += nread;
-			if (nread == 0) {
-				return md5_to_hash(md5_final_round(state, buf, buf_length * 8, msg_length * 8));
-			}
-		} while (buf_length != sizeof(buf));
-		state = md5_round(state, buf);
+		ssize_t nread = read(fd, buf, sizeof(buf));
+		if (nread < 0) {
+			return set_error(E_ERRNO, "");
+		}
+		if (nread == 0) {
+			*hash128 = md5_stream_hash(&stream);
+			return OK;
+		}
+		md5_stream(&stream, buf, nread);
 	}
+}
+
+struct md5_stream_data md5_init_stream(void) {
+	struct md5_stream_data md5_stream_data = (struct md5_stream_data){
+		.state = md5_initial_state(),
+		.msg_len = 0,
+		.buf_len = 0,
+	};
+
+	return md5_stream_data;
+}
+
+void md5_stream(struct md5_stream_data *stream_data, void const *buf, size_t buf_size) {
+	uint8_t new_len = sizeof(stream_data->buf);
+	if (buf_size + stream_data->buf_len < sizeof(stream_data->buf)) {
+		new_len = buf_size + stream_data->buf_len;
+	}
+
+	uint8_t copy_amount = new_len - stream_data->buf_len;
+	ft_memcpy(&stream_data->buf[stream_data->buf_len], buf, copy_amount);
+	stream_data->buf_len = new_len;
+
+	if (stream_data->buf_len * 8 == 512) {
+		stream_data->state = md5_round(stream_data->state, stream_data->buf);
+		stream_data->buf_len = 0;
+
+		size_t offset = copy_amount;
+		while (buf_size - offset >= sizeof(stream_data->buf)) {
+			stream_data->state = md5_round(stream_data->state, &buf[offset]);
+			offset += sizeof(stream_data->buf);
+		}
+
+		ft_memcpy(stream_data->buf, &buf[offset], buf_size - offset);
+		stream_data->buf_len = buf_size - offset;
+	}
+
+	stream_data->msg_len += buf_size;
+}
+
+struct hash128 md5_stream_hash(struct md5_stream_data *stream_data) {
+	return md5_to_hash(md5_final_round(stream_data->state, stream_data->buf, stream_data->buf_len * 8, stream_data->msg_len * 8));
 }
 

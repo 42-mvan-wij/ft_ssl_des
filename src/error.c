@@ -38,6 +38,21 @@ t_result set_error(enum ft_error errnum, char const *msg) {
 	return FAIL;
 }
 
+void *set_error_null(enum ft_error errnum, char const *msg) {
+	(void)set_error(errnum, msg);
+	return NULL;
+}
+
+void *retain_error_null(char const *msg) {
+	if (msg != NULL) {
+		(void)set_error(get_error(), msg);
+	}
+	else {
+		(void)set_error(get_error(), get_error_msg());
+	}
+	return NULL;
+}
+
 void clear_error(void) {
 	struct error *err = get_error_ptr();
 	err->errnum = E_NONE;
