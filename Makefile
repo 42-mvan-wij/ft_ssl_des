@@ -60,11 +60,6 @@ clean:
 fclean: clean
 	rm -f $(NAME)
 
-.PHONY: fclean
-fclean: clean
-	rm -f $(NAME)
-	# rm -f $(TEST_NAME)
-
 .PHONY: re
 re: fclean all
 
@@ -76,9 +71,11 @@ bonus:
 re_bonus:
 	$(MAKE) BONUS=1 re
 
+.PHONY: valgrind
 valgrind:
 	$(MAKE) re DEBUG=1 SAN=0
 
+.PHONY: fuzz
 fuzz:
 	$(MAKE) re SAN=1 FUZZ=1
 

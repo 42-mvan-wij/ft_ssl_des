@@ -8,6 +8,7 @@
 #include "cipher.h"
 #include "digest.h"
 #include "utils.h"
+#include "genrsa.h"
 
 #define PROG_NAME "ft_ssl"
 
@@ -30,8 +31,18 @@
 
 
 
+// #include <stdio.h>
 t_result cmd_test(char **args) {
 	(void)args;
+// 	size_t i = 0;
+// 	while (true) {
+// 		if (i != 13) {
+// 			i++;
+// 			continue;
+// 		}
+// 		break;
+// 	}
+// 	printf("i: %zu\n", i);
 	return OK;
 }
 
@@ -40,6 +51,10 @@ static t_result run_cmd(char *cmd, char **args) {
 		char *cmd_name;
 		t_result(*cmd_fn)(char **args);
 	} dispatch_table[] = {
+		{ "genrsa", &cmd_genrsa },
+		// { "rsa", &cmd_rsa },
+		// { "rsautl", &cmd_rsautl },
+
 		{ "md5", &cmd_md5 },
 		{ "sha256", &cmd_sha256 },
 
@@ -68,6 +83,9 @@ static t_result run_cmd(char *cmd, char **args) {
 void list_commands() {
 	ft_putstr(STDERR_FILENO, 
 		"Standard Commands:\n"
+		"genrsa\n"
+		"rsa\n"
+		"rsautl\n"
 		"\n"
 		"Message Digest Commands:\n"
 		"md5\n"
