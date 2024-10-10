@@ -4,6 +4,7 @@
 #include "random.h"
 #include "utils.h"
 #include "miller_rabin.h"
+#include "math.h"
 
 enum primality {
 	P_COMPOSITE,
@@ -146,7 +147,7 @@ struct mod_primes {
 	uint16_t mod_primes[lengthof(g_primes)];
 };
 
-static struct mod_primes get_mod_primes_for(uint64_t p) {
+static struct mod_primes get_mod_primes_for(uint32_t p) {
 	struct mod_primes mod_primes;
 	for (size_t i = 0; i < lengthof(mod_primes.mod_primes); i++) {
 		mod_primes.mod_primes[i] = p % g_primes[i];
@@ -166,7 +167,7 @@ static bool composite_by_mod_primes(struct mod_primes const *mod_primes) {
 	return false;
 }
 
-static void next(uint64_t *p, struct mod_primes *mod_primes) {
+static void next(uint32_t *p, struct mod_primes *mod_primes) {
 	*p += 2;
 	for (size_t i = 0; i < lengthof(mod_primes->mod_primes); i++) {
 		mod_primes->mod_primes[i] += 2;
@@ -176,10 +177,20 @@ static void next(uint64_t *p, struct mod_primes *mod_primes) {
 	}
 }
 
-static void gen_primes(uint64_t *p, uint64_t *q) {
-	*q = (ft_random_64() | 1) & (((uint64_t)1 << 63) - 1);
+static void gen_primes(uint32_t *p, uint32_t *q, uint64_t exponent) {
+	// uint64_t aaa = ft_random_64();
+	// aaa |= 1;
+	// // aaa &= ((uint64_t)1 << 63) - 1;
+	// aaa |= (uint64_t)1 << 63;
+
+	*p = (ft_random_64() | 1 | ((uint64_t)1 << 31)) & UINT32_MAX;
 	struct mod_primes mod_primes = get_mod_primes_for(*p);
 	while (true) {
+		if (*p - 1 < exponent) {
+			write(STDERR_FILENO, "*", 1);
+			next(p, &mod_primes);
+		}
+		write(STDERR_FILENO, ".", 1);
 		if (composite_by_mod_primes(&mod_primes)) {
 			write(STDERR_FILENO, "*", 1);
 			next(p, &mod_primes);
@@ -193,12 +204,17 @@ static void gen_primes(uint64_t *p, uint64_t *q) {
 		break;
 	};
 	write(STDERR_FILENO, "\n", 1);
-	*q = (ft_random_64() | 1) & (((uint64_t)1 << 63) - 1);
+	*q = (ft_random_64() | 1 | ((uint32_t)1 << 31)) & UINT32_MAX;
 	mod_primes = get_mod_primes_for(*q);
 	while (true) {
 		if (*q == *p) {
 			write(STDERR_FILENO, "*", 1);
 			next(q, &mod_primes);
+		}
+		write(STDERR_FILENO, ".", 1);
+		if (*q - 1 < exponent) {
+			write(STDERR_FILENO, "*", 1);
+			next(p, &mod_primes);
 		}
 		write(STDERR_FILENO, ".", 1);
 		if (composite_by_mod_primes(&mod_primes)) {
@@ -216,11 +232,18 @@ static void gen_primes(uint64_t *p, uint64_t *q) {
 	write(STDERR_FILENO, "\n", 1);
 }
 
+// https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/
+// https://datatracker.ietf.org/doc/html/rfc8017#appendix-A.1.2
+// https://lapo.it/asn1js/
 t_result cmd_genrsa(char **args) {
 	(void)args;
-	uint64_t p, q;
-	gen_primes(&p, &q);
-	uint64_t n = p * q;
+	uint64_t e = 65537;
+	uint32_t p, q;
+	gen_primes(&p, &q, e);
+	uint64_t n = (uint64_t)p * q;
+	uint64_t lambda_n = lcm(p - 1, q - 1); // <= (p - 1) * (q - 1) / 2;
+	uint64_t d = mod_mult_inverse(e, lambda_n);
 	(void)n;
+	(void)d;
 	return OK;
 }

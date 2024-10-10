@@ -18,6 +18,12 @@ uint64_t ft_random_64() {
 	return r;
 }
 
+uint32_t ft_random_32() {
+	uint32_t r;
+	ft_random(&r, sizeof(r));
+	return r;
+}
+
 uint64_t rand_in_range_inclusive(uint64_t low, uint64_t high) {
 	return (ft_random_64() % (high - low + 1)) + low;
 }
